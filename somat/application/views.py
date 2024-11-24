@@ -239,7 +239,6 @@ def analyze_keyword(request):
             for entity, data in sorted_entities
         ]
         return JsonResponse({
-            "results": results[:100],  # Return up to 100 saved posts
             "top_entities": analysis_results  # Return top 10 entities
         })
 
