@@ -8,18 +8,24 @@ For the scope of this project, considering the limitations of various social med
 ## Setup
 
 Project setup:
-`python3 -m venv venv
+```bash
+python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt`
+pip install -r requirements.txt
+```
 
 .env file (Required):
-`# .env file. Developers need to fill in their Reddit Developer credentials for usage.
+```bash
+# .env file. Developers need to fill in their Reddit Developer credentials for usage.
 CLIENT_ID = your_client_id
 SECRET_ID = your_secret_id
 USERNAME = your_username
-PASSWORD = your_password`
+PASSWORD = your_password
+```
 
 Run server:
-`python3 manage.py makemigrations &&
+```bash
+python3 manage.py makemigrations &&
 python3 manage.py migrate &&
-python3 manage.py runserver`
+python3 manage.py runserver
+```
