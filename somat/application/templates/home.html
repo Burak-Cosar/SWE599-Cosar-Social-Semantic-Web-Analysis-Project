@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1>Welcome to Somat</h1>
+<p> <b>So</b>cial <b>M</b>edia <b>A</b>nalysis <b>T</b>ool</p>
+
+Select a social media platform:
+<select name="platform" id="platform">
+    <option value="reddit">Select a Platform</option>
+    <option value="reddit">Reddit</option>
+</select>
+
+<br><br>
+
+<div id="reddit-search" style="display: none;">
+    <label for="subreddit">Search Subreddit:</label>
+    <input type="text" id="subreddit" name="subreddit">
+    <button type="button" onclick="searchSubreddit()">Search</button>
+</div>
+
+<br>
+
+<div id="subreddit-selection"></div>
+
+<div id="results-container" style="margin-top: 20px;"></div>
+
+<script>
+
+    document.getElementById('platform').addEventListener('change', function() {
+        var redditSearch = document.getElementById('reddit-search');
+        if (this.value === 'reddit') {
+            redditSearch.style.display = 'block';
+        } else {
+            redditSearch.style.display = 'none';
+        }
+    });
+
+    function searchSubreddit() {
+        const query = document.getElementById('subreddit').value.trim();
+        if (!query) {
+            alert('Please enter a subreddit name.');
+            return;
+        }
+
+        // Send request to the backend
+        fetch(`/search_subreddit/?query=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // Populate dropdown and additional elements
+                    const container = document.getElementById('subreddit-selection');
+                    container.innerHTML = ''; // Clear previous content
+
+                    // Instruction before the dropdown
+                    const instruction = document.createElement('p');
+                    instruction.textContent =
+                        'Choose a specific subreddit for your analysis or select "All Reddit":';
+                    container.appendChild(instruction);
+
+                    // Create the dropdown
+                    const dropdown = document.createElement('select');
+                    dropdown.id = 'subreddit-dropdown';
+                    dropdown.name = 'selected_subreddit';
+
+                    // Add "All Reddit" option
+                    const allRedditOption = document.createElement('option');
+                    allRedditOption.value = 'all';
+                    allRedditOption.textContent = 'All Reddit';
+                    dropdown.appendChild(allRedditOption);
+
+                    // Add subreddit options
+                    data.results.forEach(subreddit => {
+                        const option = document.createElement('option');
+                        option.value = subreddit.name;
+                        option.textContent = `${subreddit.name} (${subreddit.subscribers} subscribers)`;
+                        dropdown.appendChild(option);
+                    });
+                    container.appendChild(dropdown);
+                    // Add two line breaks before the search bar for entity analysis
+                    const lineBreak1 = document.createElement('br');
+                    const lineBreak2 = document.createElement('br');
+                    container.appendChild(lineBreak1);
+                    container.appendChild(lineBreak2);
+
+                    // Add search bar for entity analysis
+                    const entitySearchInstruction = document.createElement('p');
+                    entitySearchInstruction.textContent =
+                        'What would you like to analyze?';
+                    container.appendChild(entitySearchInstruction);
+
+                    const entitySearchBar = document.createElement('input');
+                    entitySearchBar.type = 'text';
+                    entitySearchBar.id = 'entity-name';
+                    entitySearchBar.name = 'entity';
+                    entitySearchBar.placeholder = 'Enter keyword';
+                    container.appendChild(entitySearchBar);
+
+                    // Add button to submit the entity search
+                    const entitySearchButton = document.createElement('button');
+                    entitySearchButton.textContent = 'Analyze';
+                    entitySearchButton.onclick = function () {
+                        const selectedSubreddit = dropdown.value;
+                        const entity = entitySearchBar.value.trim();
+                        if (!entity) {
+                            alert('Please enter the name of the entity to analyze.');
+                            return;
+                        }
+                        alert(
+                            `You chose to analyze "${entity}" in ${
+                                selectedSubreddit === 'all'
+                                    ? 'All Reddit'
+                                    : `the subreddit "${selectedSubreddit}"`
+                            }.`
+                        );
+                        fetch(`/analyze_keyword/?subreddit=${selectedSubreddit}&keyword=${entity}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    alert(data.error);
+                                } else {
+                                    // Get the results container
+                                    const resultsContainer = document.getElementById('results-container');
+                                    resultsContainer.innerHTML = ''; // Clear any previous results
+
+                                    // Add a heading
+                                    const heading = document.createElement('h3');
+                                    heading.textContent = `Results for "${entity}" in ${selectedSubreddit === 'all' ? 'All Reddit' : selectedSubreddit}:`;
+                                    resultsContainer.appendChild(heading);
+
+                                    // Create a list to display results
+                                    const list = document.createElement('ul');
+
+                                    // Loop through the results and create list items
+                                    data.top_entities.forEach((item, index) => {
+                                        const listItem = document.createElement('li');
+                                        listItem.innerHTML = `
+                                        <strong>${index + 1}. ${item.entity} (${item.label}):</strong> ${item.count} mentions<br>    
+                                        `;
+                                        list.appendChild(listItem);
+                                    });
+
+                                    resultsContainer.appendChild(list);
+                                }
+                            })
+                            .catch(error => {
+                                alert('An error occurred: ' + error);
+                            });
+                    };
+                    container.appendChild(entitySearchButton);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error);
+            });
+    }
+
+    function analyzeEntity() {
+    const selectedSubreddit = document.getElementById('subreddit-dropdown').value;
+    const entity = document.getElementById('entity-name').value.trim();
+
+    if (!entity) {
+        alert('Please enter the name of the entity to analyze.');
+        return;
+    }
+
+    // Send the selected subreddit and keyword to the backend
+    fetch(`/analyze/?subreddit=${selectedSubreddit}&keyword=${entity}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                // Display the top 10 entities
+                const resultsContainer = document.getElementById('results-container');
+                resultsContainer.innerHTML = ''; // Clear previous results
+
+                const topEntities = data.top_entities || [];
+                if (topEntities.length > 0) {
+                    const entitiesDiv = document.createElement('div');
+                    entitiesDiv.innerHTML = `<h2>Top 10 Entities</h2>`;
+                    const entityList = document.createElement('ul');
+
+                    topEntities.forEach((entity, index) => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `
+                            <strong>${index + 1}. ${entity.entity} (${entity.label}):</strong>
+                            ${entity.count} mentions
+                        `;
+                        entityList.appendChild(listItem);
+                    });
+
+                    entitiesDiv.appendChild(entityList);
+                    resultsContainer.appendChild(entitiesDiv);
+                } else {
+                    resultsContainer.innerHTML = '<p>No entities found.</p>';
+                }
+
+                // Optionally display the first few saved posts (optional)
+                const postsDiv = document.createElement('div');
+                postsDiv.innerHTML = `<h2>Sample Posts</h2>`;
+                data.saved_results.forEach(item => {
+                    const postDiv = document.createElement('div');
+                    postDiv.innerHTML = `
+                        <h3>${item.title || '[Comment]'}</h3>
+                        <p>${item.body}</p>
+                        <p><strong>Subreddit:</strong> ${item.subreddit}</p>
+                        <p><strong>Author:</strong> ${item.author}</p>
+                        <p><strong>Score:</strong> ${item.score}</p>
+                        <p><strong>Date:</strong> ${item.date || 'No date available'}</p>
+                    `;
+                    postsDiv.appendChild(postDiv);
+                });
+
+                resultsContainer.appendChild(postsDiv);
+            }
+        })
+        .catch(error => {
+            alert('An error occurred: ' + error);
+        });
+    }
+</script>
+
+{% endblock %}
