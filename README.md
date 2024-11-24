@@ -1,4 +1,4 @@
-# SWE599-Cosar-Social-Semantic-Web-Analysis-Project
+# SOMAT: Social Media Analysis Tool
 
 ## Description
 The purpose of this tool is to enable users to make social media analysis based on their platform, context and time period preferences, providing them with multiple output and visualization options.
