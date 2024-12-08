@@ -4,9 +4,11 @@ from django.http import JsonResponse
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from collections import defaultdict
-from transformers import pipeline
 from flair.models import SequenceTagger
 from flair.data import Sentence
+from collections import defaultdict
+from rapidfuzz import process, fuzz
+import spacy
 
 load_dotenv()
 tagger = SequenceTagger.load("ner-fast")
@@ -142,104 +144,204 @@ def extract_named_entities(posts):
 
     return entity_counts
     
+def get_reddit_data(request):
+    subreddit = request.GET.get('subreddit', 'all')
+    keyword = request.GET.get('keyword', '').strip()
+
+    CLIENT_ID = os.getenv('CLIENT_ID')
+    SECRET_ID = os.getenv('SECRET_ID')
+    USERNAME = os.getenv('USERNAME')
+    PASSWORD = os.getenv('PASSWORD')
+
+    if not all([CLIENT_ID, SECRET_ID, USERNAME, PASSWORD]):
+        return JsonResponse({'error': 'Missing Reddit API credentials.'}, status=500)
+
+    # Authenticate with Reddit API
+    auth = requests.auth.HTTPBasicAuth(CLIENT_ID, SECRET_ID)
+    data = {'grant_type': 'password', 'username': USERNAME, 'password': PASSWORD}
+    headers = {'User-Agent': 'MyRedditApp/1.0'}
+
+    token_response = requests.post(
+        'https://www.reddit.com/api/v1/access_token',
+        auth=auth,
+        data=data,
+        headers=headers,
+    )
+    if token_response.status_code != 200:
+        return JsonResponse({'error': 'Failed to authenticate with Reddit API.'}, status=403)
+
+    TOKEN = token_response.json().get('access_token')
+    if not TOKEN:
+        return JsonResponse({'error': 'Failed to retrieve access token.'}, status=403)
+
+    headers['Authorization'] = f"bearer {TOKEN}"
+
+    # Fetch posts and comments using Reddit API
+    results = []
+    after = None
+    while len(results) < 1000:
+        params = {
+            'q': keyword,
+            'limit': 100,
+            'sort': 'new',
+            't': 'all',
+            'after': after,
+        }
+        if subreddit != 'all':
+            url = f'https://oauth.reddit.com/r/{subreddit}/search'
+            params['restrict_sr'] = True  # Restrict search to the subreddit
+        else:
+            url = 'https://oauth.reddit.com/search'
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            break  # Stop if there's an error
+
+        data = response.json()
+        posts = data.get('data', {}).get('children', [])
+        for post in posts:
+            post_data = post['data']
+            created_date = datetime.fromtimestamp(
+                post_data.get('created_utc', 0),
+                tz=timezone.utc
+            ).strftime('%Y-%m-%d %H:%M:%S')
+            results.append({
+                'title': post_data.get('title'),
+                'body': post_data.get('selftext', post_data.get('body', '')),
+                'subreddit': post_data.get('subreddit'),
+                'author': post_data.get('author'),
+                'score': post_data.get('score'),
+                'date': created_date,
+            })
+
+        after = data.get('data', {}).get('after')
+        if not after:
+            break  # No more pages
+
+    # Save results to a JSON file
+    save_api_data_to_file(results, filename='reddit_data.json')
+
+    return JsonResponse({'results': results})
+
 def analyze_keyword(request):
-    if request.method == 'GET':
-        subreddit = request.GET.get('subreddit', 'all')
-        keyword = request.GET.get('keyword', '').strip()
+    subreddit = request.GET.get('subreddit', 'all')
+    keyword = request.GET.get('keyword', '').strip()
 
-        if not keyword:
-            return JsonResponse({'error': 'Keyword is required.'}, status=400)
+    reddit_response = get_reddit_data(request)
+    reddit_data = json.loads(reddit_response.content).get("results", [])
 
-        CLIENT_ID = os.getenv('CLIENT_ID')
-        SECRET_ID = os.getenv('SECRET_ID')
-        USERNAME = os.getenv('USERNAME')
-        PASSWORD = os.getenv('PASSWORD')
+    if not reddit_data:
+        return JsonResponse({'error': 'No data found from Reddit API.'}, status=404)
 
-        if not all([CLIENT_ID, SECRET_ID, USERNAME, PASSWORD]):
-            return JsonResponse({'error': 'Missing Reddit API credentials.'}, status=500)
+    entity_counts = extract_named_entities(reddit_data)
+    sorted_entities = sorted(
+        entity_counts.items(),
+        key=lambda item: item[1]["count"],
+        reverse=True
+    )[:50]
 
-        # Authenticate with Reddit API
-        auth = requests.auth.HTTPBasicAuth(CLIENT_ID, SECRET_ID)
-        data = {'grant_type': 'password', 'username': USERNAME, 'password': PASSWORD}
-        headers = {'User-Agent': 'MyRedditApp/1.0'}
+    analysis_results = [
+        {"entity": entity, "label": data["label"], "count": data["count"]}
+        for entity, data in sorted_entities
+    ]
 
-        token_response = requests.post(
-            'https://www.reddit.com/api/v1/access_token',
-            auth=auth,
-            data=data,
-            headers=headers,
+    # Perform entity linking
+    keyword_entity, linked_entities = spacy_entity_linking(analysis_results, keyword)
+
+    # Categorize by label
+    linked_people = [
+        entity for entity in linked_entities if entity['label'] == 'PER'
+    ][:5]
+
+    linked_locations = [
+        entity for entity in linked_entities if entity['label'] == 'LOC'
+    ][:5]
+
+    linked_organizations = [
+        entity for entity in linked_entities if entity['label'] == 'ORG'
+    ][:5]
+
+    return JsonResponse({
+        "keyword_entity": keyword_entity,
+        "linked_people": linked_people,
+        "linked_locations": linked_locations,
+        "linked_organizations": linked_organizations,
+    })
+
+# Load SpaCy model
+nlp = spacy.load("en_core_web_sm")
+
+ENTITY_ALIAS_MAPPING = {
+    "Trump": ("Donald Trump", "PER"),
+    "Musk": ("Elon Musk", "PER"),
+    "Hegseth": ("Pete Hegseth", "PER"),
+    "U.S.": ("United States", "LOC"),
+    "US": ("United States", "LOC"),
+    "Biden": ("Joe Biden", "PER"),
+    "America": ("United States", "LOC"),
+    "DeSantis": ("Ron DeSantis", "PER"),
+    "Kamala": ("Kamala Harris", "PER"),
+    "Harris": ("Kamala Harris", "PER"),
+    "Zelenskyy": ("Volodymyr Zelenskyy", "PER"),
+    "Zelensky": ("Volodymyr Zelenskyy", "PER"),
+    "Putin": ("Vladimir Putin", "PER"),
+    "FOX": ("Fox News", "ORG"),
+}
+
+from collections import defaultdict
+from rapidfuzz import process, fuzz
+import spacy
+
+# Load SpaCy model
+nlp = spacy.load("en_core_web_sm")
+
+def spacy_entity_linking(entities, keyword, threshold=85):
+    merged_entities = defaultdict(lambda: {"label": None, "count": 0})
+    keyword_entity = None
+
+    for entity_data in entities:
+        entity = entity_data['entity']
+        label = entity_data['label']
+        count = entity_data['count']
+
+        # Apply manual alias mapping
+        if entity in ENTITY_ALIAS_MAPPING:
+            resolved_entity, resolved_label = ENTITY_ALIAS_MAPPING[entity]
+            label = resolved_label
+        else:
+            resolved_entity = entity
+
+        # Use SpaCy NER if needed
+        doc = nlp(resolved_entity)
+        if doc.ents:
+            resolved_entity = doc.ents[0].text
+
+        # Use fuzzy matching to merge similar entities
+        match_data = process.extractOne(
+            resolved_entity, merged_entities.keys(), scorer=fuzz.token_set_ratio
         )
-        if token_response.status_code != 200:
-            return JsonResponse({'error': 'Failed to authenticate with Reddit API.'}, status=403)
 
-        TOKEN = token_response.json().get('access_token')
-        if not TOKEN:
-            return JsonResponse({'error': 'Failed to retrieve access token.'}, status=403)
+        if match_data:
+            match, score, _ = match_data
+            if score >= threshold:
+                merged_entities[match]["count"] += count
+                continue
 
-        headers['Authorization'] = f"bearer {TOKEN}"
+        # Add or update the entity in merged_entities
+        merged_entities[resolved_entity]["label"] = label
+        merged_entities[resolved_entity]["count"] += count
 
-        # Fetch posts and comments using Reddit API
-        results = []
-        after = None
-        while len(results) < 1000:
-            params = {
-                'q': keyword,
-                'limit': 100,  # Max allowed by Reddit API per request
-                'sort': 'new',
-                't': 'all',
-                'after': after,
-            }
-            if subreddit != 'all':
-                url = f'https://oauth.reddit.com/r/{subreddit}/search'
-                params['restrict_sr'] = True  # Restrict search to the subreddit
-            else:
-                url = 'https://oauth.reddit.com/search'
+    # Extract the keyword entity
+    for key, data in list(merged_entities.items()):
+        if keyword.lower() in key.lower():
+            keyword_entity = {"entity": key, "label": data["label"], "count": data["count"]}
+            del merged_entities[key]
+            break
 
-            response = requests.get(url, headers=headers, params=params)
-            if response.status_code != 200:
-                break  # Stop if there's an error
+    # Prepare remaining entities list
+    remaining_entities = [
+        {'entity': k, 'label': v['label'], 'count': v['count']}
+        for k, v in merged_entities.items()
+    ]
 
-            data = response.json()
-            posts = data.get('data', {}).get('children', [])
-            for post in posts:
-                post_data = post['data']
-                created_date = datetime.fromtimestamp(
-                    post_data.get('created_utc', 0),
-                    tz=timezone.utc
-                ).strftime('%Y-%m-%d %H:%M:%S')
-                results.append({
-                    'title': post_data.get('title'),
-                    'body': post_data.get('selftext', post_data.get('body', '')),
-                    'subreddit': post_data.get('subreddit'),
-                    'author': post_data.get('author'),
-                    'score': post_data.get('score'),
-                    'date': created_date,
-                })
-
-            after = data.get('data', {}).get('after')
-            if not after:
-                break  # No more pages
-
-        # Save results to a JSON file
-        save_api_data_to_file(results, filename='reddit_data.json')
-
-        # Analyze saved data
-        entity_counts = extract_named_entities(results)
-
-        # Sort entities by count in descending order and take the top 10
-        sorted_entities = sorted(
-            entity_counts.items(),
-            key=lambda item: item[1]["count"],
-            reverse=True
-        )[:10]
-
-        # Format results for JSON response
-        analysis_results = [
-            {"entity": entity, "label": data["label"], "count": data["count"]}
-            for entity, data in sorted_entities
-        ]
-        return JsonResponse({
-            "top_entities": analysis_results  # Return top 10 entities
-        })
-
-    return JsonResponse({'error': 'Method not allowed.'}, status=405)
+    return keyword_entity, remaining_entities
