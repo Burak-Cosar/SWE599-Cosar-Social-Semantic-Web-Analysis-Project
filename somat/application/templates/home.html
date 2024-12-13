@@ -5,31 +5,39 @@
 <h1>Welcome to Somat</h1>
 <p><b>So</b>cial <b>M</b>edia <b>A</b>nalysis <b>T</b>ool</p>
 
-<!-- Platform Selection -->
-Select a social media platform:
-<select name="platform" id="platform">
-    <option value="">Select a Platform</option>
-    <option value="reddit">Reddit</option>
-</select>
 
-<br><br>
+    <!-- Platform Selection -->
+<div id="query-section">
+    Select a social media platform:
+    <select name="platform" id="platform">
+        <option value="">Select a Platform</option>
+        <option value="reddit">Reddit</option>
+    </select>
 
-<!-- Subreddit Search Section -->
-<div id="reddit-search" style="display: none;">
-    <label for="subreddit">Search Subreddit:</label>
-    <input type="text" id="subreddit" name="subreddit">
-    <button type="button" onclick="searchSubreddit()">Search</button>
+    <br><br>
+
+    <!-- Subreddit Search Section -->
+    <div id="reddit-search" style="display: none;">
+        <label for="subreddit">Search Subreddit:</label>
+        <input type="text" id="subreddit" name="subreddit">
+        <button type="button" onclick="searchSubreddit()">Search</button>
+    </div>
+
+    <br>
+
+    <!-- Subreddit Selection Container -->
+    <div id="subreddit-selection"></div>
 </div>
-
-<br>
-
-<!-- Subreddit Selection Container -->
-<div id="subreddit-selection"></div>
 
 <!-- Results Container -->
 <div id="results-container" style="margin-top: 20px;"></div>
 
+<div id="loading" style="display: none; text-align: center; font-size: 24px; margin-top: 20px;">
+    Loading...
+</div>
+
 <script>
+
 document.getElementById('platform').addEventListener('change', function () {
     const redditSearch = document.getElementById('reddit-search');
     redditSearch.style.display = this.value === 'reddit' ? 'block' : 'none';
@@ -72,6 +80,34 @@ function searchSubreddit() {
                 });
 
                 container.appendChild(dropdown);
+                container.appendChild(document.createElement('br'));
+                container.appendChild(document.createElement('br'));
+
+                const timePeriodLabel = document.createElement('label');
+                timePeriodLabel.textContent = 'Choose time period: ';
+                container.appendChild(timePeriodLabel);
+                container.appendChild(document.createElement('br'));
+
+                const timePeriodDropdown = document.createElement('select');
+                timePeriodDropdown.id = 'time-period';
+                timePeriodDropdown.name = 'time_period';
+
+                const timePeriods = [
+                    { value: 'hour', text: 'Last Hour' },
+                    { value: 'day', text: 'Last Day' },
+                    { value: 'week', text: 'Last Week' },
+                    { value: 'month', text: 'Last Month' },
+                    { value: 'year', text: 'Last Year' },
+                    { value: 'all', text: 'All Time' }
+                ];
+                timePeriods.forEach(period => {
+                    const option = document.createElement('option');
+                    option.value = period.value;
+                    option.textContent = period.text;
+                    timePeriodDropdown.appendChild(option);
+                });
+
+                container.appendChild(timePeriodDropdown);
 
                 // Add analysis instruction text
                 const entitySearchInstruction = document.createElement('p');
@@ -92,12 +128,29 @@ function searchSubreddit() {
                 analyzeButton.onclick = analyzeEntity;
                 container.appendChild(analyzeButton);
                 container.appendChild(document.createElement('br'));
+                container.appendChild(document.createElement('br'));
             }
         })
         .catch(error => alert('An error occurred: ' + error));
 }
 
+
 function analyzeEntity() {
+
+    function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+    }
+
+    function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+    }
+
+    document.getElementById('query-section').style.display = 'none';
+    const resultsContainer = document.getElementById('results-container');
+    resultsContainer.style.display = 'block';
+    resultsContainer.innerHTML = '';
+    showLoading();
+
     const subreddit = document.getElementById('subreddit-dropdown').value;
     const entity = document.getElementById('entity-name').value.trim();
 
@@ -106,14 +159,23 @@ function analyzeEntity() {
         return;
     }
 
-    fetch(`/analyze_keyword/?subreddit=${subreddit}&keyword=${entity}`)
+    fetch(`/analyze_keyword/?subreddit=${subreddit}&keyword=${entity}&time_period=${document.getElementById('time-period').value}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
                 alert(data.error);
             } else {
+                hideLoading();
+                
                 const resultsContainer = document.getElementById('results-container');
                 resultsContainer.innerHTML = ''; 
+
+                const newAnalysisButton = document.createElement('button');
+                newAnalysisButton.textContent = 'New Analysis';
+                newAnalysisButton.onclick = () => location.reload();
+                resultsContainer.appendChild(newAnalysisButton);
+                resultsContainer.appendChild(document.createElement('br'));
+                resultsContainer.appendChild(document.createElement('br'));
 
                 // Label mapping for better readability
                 const labelMap = {
@@ -121,53 +183,112 @@ function analyzeEntity() {
                     'LOC': 'location',
                     'ORG': 'organization'
                 };
-
-                // Display matching keyword entity if found
+                
                 if (data.keyword_entity) {
                     const keywordSection = document.createElement('div');
-                    const keywordHeading = document.createElement('h3');
-                    
-                    const labelText = labelMap[data.keyword_entity.label] || 'Entity';
+                    keywordSection.style.display = 'flex';
+                    keywordSection.style.flexDirection = 'column';
+                    keywordSection.style.alignItems = 'center';  // Center horizontally
+                    keywordSection.style.marginBottom = '2em';
 
-                    keywordHeading.textContent = `Your keyword matches with the following ${labelText}:`;
+                    // Create the heading
+                    const keywordHeading = document.createElement('h3');
+                    const labelText = labelMap[data.keyword_entity.label] || 'Entity';
+                    keywordHeading.textContent = `Keyword matches with the ${labelText}:`;
+                    keywordHeading.style.textAlign = 'center';  // Center the heading
                     keywordSection.appendChild(keywordHeading);
+
+                    // Create the content container
+                    const contentContainer = document.createElement('div');
+                    contentContainer.style.display = 'flex';
+                    contentContainer.style.alignItems = 'center';
+                    contentContainer.style.justifyContent = 'center';  // Center horizontally
+
+                    // Create and style the image element
+                    const keywordImage = document.createElement('img');
+                    keywordImage.src = data.keyword_entity.image;
+                    keywordImage.alt = `${data.keyword_entity.entity} Image`;
+                    keywordImage.style.width = '150px';   // Slightly larger for emphasis
+                    keywordImage.style.marginRight = '2em';
+                    keywordImage.style.borderRadius = '20px'; 
+
+                    // Create the text container
+                    const textContainer = document.createElement('div');
+                    textContainer.style.textAlign = 'center';
 
                     const keywordDetails = document.createElement('p');
                     keywordDetails.innerHTML = `
-                        <strong>${data.keyword_entity.entity} (${labelText}):</strong> 
+                        <strong>${data.keyword_entity.entity}</strong>
+                        <br> 
                         ${data.keyword_entity.count} mentions
                     `;
-                    keywordSection.appendChild(keywordDetails);
+                    textContainer.appendChild(keywordDetails);
+
+                    // Append both elements to the content container
+                    contentContainer.appendChild(keywordImage);
+                    contentContainer.appendChild(textContainer);
+
+                    // Append the content container to the section
+                    keywordSection.appendChild(contentContainer);
+
+                    // Add the section to the results container
                     resultsContainer.appendChild(keywordSection);
                 }
 
+
                 // Helper function to create results sections
                 function createResultSection(title, dataArray) {
+                    const defaultImageUrl = 'https://salonlfc.com/wp-content/uploads/2018/01/image-not-found-1-scaled-1150x647.png';
+
                     if (!dataArray || dataArray.length === 0) return;
 
                     const section = document.createElement('div');
                     const heading = document.createElement('h3');
                     heading.textContent = title;
+                    heading.style.textAlign = 'center';
                     section.appendChild(heading);
+                    section.appendChild(document.createElement('br'));
 
-                    const list = document.createElement('ul');
-                    dataArray.forEach((item, index) => {
-                        const listItem = document.createElement('li');
-                        listItem.innerHTML = `
-                            <strong>${index + 1}. ${item.entity} (${labelMap[item.label] || item.label}):</strong> 
-                            ${item.count} mentions
-                        `;
+                    const list = document.createElement('div');
+                    list.style.display = 'flex';
+                    list.style.flexWrap = 'wrap';
+                    list.style.gap = '10px';
+
+                    dataArray.forEach((item) => {
+                        const listItem = document.createElement('div');
+                        listItem.style.textAlign = 'center';
+                        listItem.style.width = '180px';
+
+                        const image = document.createElement('img');
+                        image.src = item.image.includes('None') ? defaultImageUrl : item.image;
+                        image.alt = `${item.entity} Image`;
+                        image.style.width = '100px';
+                        image.style.height = '100px';
+                        image.style.objectFit = 'cover';
+                        image.style.borderRadius = '10px';
+                        listItem.appendChild(image);
+
+                        const name = document.createElement('p');
+                        name.innerText = item.entity;
+                        name.style.fontWeight = 'bold';
+                        listItem.appendChild(name);
+
+                        const count = document.createElement('p');
+                        count.innerText = `${item.count} mentions`;
+                        listItem.appendChild(count);
+
                         list.appendChild(listItem);
                     });
 
                     section.appendChild(list);
+                    section.appendChild(document.createElement('br'));
                     resultsContainer.appendChild(section);
                 }
 
                 // Display results in sections
-                createResultSection("People", data.linked_people);
-                createResultSection("Locations", data.linked_locations);
-                createResultSection("Organizations", data.linked_organizations);
+                createResultSection("People Mentioned Together", data.linked_people);
+                createResultSection("Locations Mentioned Together", data.linked_locations);
+                createResultSection("Organizations Mentioned Together", data.linked_organizations);
             }
         })
         .catch(error => alert('An error occurred: ' + error));
