@@ -19,7 +19,7 @@ PASSWORD = your_password
 Project setup:
 ```bash
 cd Somat
-python3.11 -m venv venv
+python3.11 -m venv venv #newer Python versions might cause errors in dependecies
 source venv/bin/activate
 pip install -r requirements.txt
 ```
