@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF
+   xmlns:ns1="http://localhost:8000/somat/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q2251971">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Medieval England</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>aspect of history</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q207698">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Kingdom of Heaven</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</ns1:count>
+    <ns1:instance_of>film</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q1136">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Reddit</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</ns1:count>
+    <ns1:instance_of>user-generated content platform</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q482999">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Gladiator</rdfs:label>
+    <ns1:instance_of>historical profession</ns1:instance_of>
+    <ns1:mentioned_with rdf:resource="http://www.wikidata.org/entity/Q180098"/>
+    <ns1:mentioned_with rdf:resource="http://www.wikidata.org/entity/Q923"/>
+    <ns1:mentioned_with rdf:resource="http://www.wikidata.org/entity/Q38463058"/>
+    <ns1:mentioned_with rdf:resource="http://www.wikidata.org/entity/Q122634"/>
+    <ns1:mentioned_with rdf:resource="http://www.wikidata.org/entity/Q2737173"/>
+    <ns1:mentioned_in_location rdf:resource="http://www.wikidata.org/entity/Q106519072"/>
+    <ns1:mentioned_in_location rdf:resource="http://www.wikidata.org/entity/Q7204"/>
+    <ns1:mentioned_in_location rdf:resource="http://www.wikidata.org/entity/Q2251971"/>
+    <ns1:associated_with rdf:resource="http://www.wikidata.org/entity/Q207698"/>
+    <ns1:associated_with rdf:resource="http://www.wikidata.org/entity/Q1136"/>
+    <ns1:associated_with rdf:resource="http://www.wikidata.org/entity/Q221150"/>
+    <ns1:associated_with rdf:resource="http://www.wikidata.org/entity/Q2092297"/>
+    <ns1:associated_with rdf:resource="http://www.wikidata.org/entity/Q654075"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q2092297">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Eagle</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>organisms known by a particular common name</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q654075">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>The Last Legion</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>film</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q180098">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Ben Hur</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</ns1:count>
+    <ns1:instance_of>film</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q106519072">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Rome Rome</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</ns1:count>
+    <ns1:instance_of>film</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q221150">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Vikings</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</ns1:count>
+    <ns1:instance_of>American football team</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q7204">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Middle East</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>cultural region</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q122634">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Robin Hood</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>anime character</ns1:instance_of>
+    <ns1:occupation>thief</ns1:occupation>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q923">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Alexander</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>male given name</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q38463058">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Outlaw King</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>film</ns1:instance_of>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q2737173">
+    <rdf:type rdf:resource="http://localhost:8000/somat/Entity"/>
+    <rdfs:label>Julia</rdfs:label>
+    <ns1:count rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</ns1:count>
+    <ns1:instance_of>female given name</ns1:instance_of>
+  </rdf:Description>
+</rdf:RDF>

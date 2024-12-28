@@ -8,6 +8,7 @@ from flair.models import SequenceTagger
 from flair.data import Sentence
 from rapidfuzz import process, fuzz
 from urllib.parse import quote
+from bs4 import BeautifulSoup
 
 load_dotenv()
 tagger = SequenceTagger.load("ner-fast")
@@ -227,9 +228,13 @@ def analyze_keyword(request):
     # Fetch images for top entities only
     for entity_list in [linked_people, linked_locations, linked_organizations]:
         for entity in entity_list:
+            entity['wikidata_id'] = get_wikidata_id(entity['entity'], query)
             entity['image'] = get_image_from_wikidata(entity['wikidata_id'])
+            entity['wikipedia'] = get_wikipedia_url(entity['wikidata_id'])
 
-    keyword_entity_image = get_image_from_wikidata(keyword_entity['wikidata_id'])
+    keyword_entity_wikidata_id = get_wikidata_id(keyword, query)
+    keyword_entity_image = get_image_from_wikidata(keyword_entity_wikidata_id)
+    keyword_entity_wikipedia = get_wikipedia_url(keyword_entity_wikidata_id)
 
     # Construct the output JSON
     output_data = {
@@ -237,8 +242,9 @@ def analyze_keyword(request):
             "entity": keyword_entity['entity'],
             "label": keyword_entity['label'],
             "count": keyword_entity['count'],
-            "wikidata_id": keyword_entity['wikidata_id'],
-            "image": keyword_entity_image
+            "wikidata_id": keyword_entity_wikidata_id,
+            "image": keyword_entity_image,
+            "wikipedia": keyword_entity_wikipedia
         },
         "linked_people": linked_people,
         "linked_locations": linked_locations,
@@ -288,7 +294,7 @@ ENTITY_ALIAS_MAPPING = {
     "Messi": ("Lionel Messi", "PER"),
     "Mbappé": ("Kylian Mbappé", "PER"),
     "Man United": ("Manchester United", "ORG"),
-    "fetterman": ("John Fetterman", "PER"),
+    "Fetterman": ("John Fetterman", "PER"),
     "Witcher": ("The Witcher", "ORG"),
     "Baldur": ("Baldur's Gate", "ORG"),
     "Baldurs Gate": ("Baldur's Gate", "ORG"),
@@ -306,6 +312,7 @@ ENTITY_ALIAS_MAPPING = {
     "Guardiola": ("Pep Guardiola", "PER"),
     "Al": ("Al Ahly", "ORG"),
     "Ross County": ("Ross County", "LOC"),
+    "Luis Diaz": ("Luis Díaz", "PER"),
 }
 
 def spacy_entity_linking(entities, keyword, query, threshold=85):
@@ -350,13 +357,13 @@ def spacy_entity_linking(entities, keyword, query, threshold=85):
     # Extract the keyword entity
     for key, data in list(merged_entities.items()):
         if keyword.lower() in key.lower():
-            keyword_entity = {"entity": key, "label": data["label"], "count": data["count"],"wikidata_id": get_wikidata_id(key, query)}
+            keyword_entity = {"entity": key, "label": data["label"], "count": data["count"]}
             del merged_entities[key]
             break
 
     # Prepare related entities list
     related_entities = [
-        {"entity": k, "label": v["label"], "count": v["count"], "wikidata_id": get_wikidata_id(k, query)}
+        {"entity": k, "label": v["label"], "count": v["count"]}
         for k, v in merged_entities.items()
     ]
 
@@ -426,3 +433,184 @@ def get_image_from_wikidata(wikidata_id):
 
     # Return None if no image is found
     return "None"
+
+def get_wikipedia_url(wikidata_id):
+    url = "https://www.wikidata.org/w/api.php"
+    params = {
+        "action": "wbgetentities",
+        "ids": wikidata_id,
+        "props": "sitelinks",
+        "format": "json",
+        "sitefilter": "enwiki",  # Filter for English Wikipedia
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Handle HTTP errors
+        data = response.json()
+
+        # Extract the English Wikipedia title
+        sitelinks = data.get("entities", {}).get(wikidata_id, {}).get("sitelinks", {})
+        if "enwiki" in sitelinks:
+            title = sitelinks["enwiki"].get("title")
+            if title:
+                # Construct the URL using the title
+                return f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}"
+        return None  # Return None if no title is found
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data from Wikidata: {e}")
+        return None
+    
+
+# KNOWLEDGE GRAPH GENERATION
+from rdflib import Graph, URIRef, Literal, Namespace, RDF
+from rdflib.namespace import FOAF, RDFS, SKOS
+from SPARQLWrapper import SPARQLWrapper, JSON
+
+# Define namespaces
+WD = Namespace("http://www.wikidata.org/entity/")
+SOMAT = Namespace("http://localhost:8000/somat/")
+
+def get_entity_data(wikidata_id, delay=0.8):
+    if not wikidata_id or wikidata_id == "Not found":
+        return {}
+
+    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
+    query = f"""
+    SELECT ?property ?propertyLabel ?value ?valueLabel ?instanceOfLabel
+    WHERE {{
+        OPTIONAL {{
+            wd:{wikidata_id} ?prop ?value .
+            ?property wikibase:directClaim ?prop .
+        }}
+        OPTIONAL {{
+            wd:{wikidata_id} wdt:P31 ?instanceOf .
+            SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
+        }}
+    }}
+    LIMIT 100
+    """
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+
+    print(f"Waiting {delay} seconds before querying {wikidata_id}...")
+    time.sleep(delay)
+
+    results = sparql.query().convert()
+    enriched_data = {}
+
+    for result in results["results"]["bindings"]:
+        if "propertyLabel" in result and "valueLabel" in result:
+            property_label = result["propertyLabel"]["value"]
+            value_label = result["valueLabel"]["value"]
+            if "T" in value_label:
+                value_label = value_label.split("T")[0]
+            enriched_data[property_label] = value_label
+
+        if "instanceOfLabel" in result:
+            enriched_data["instance of"] = result["instanceOfLabel"]["value"]
+
+    allowed_properties = {"date of birth", "spouse", "occupation", "place of birth", "award received", "instance of"}
+    return {k: v for k, v in enriched_data.items() if k in allowed_properties}
+
+def create_enriched_graph(data):
+    g = Graph()
+
+    # Bind the SKOS namespace
+    g.bind('skos', SKOS)
+
+    keyword_entity = data.get("keyword_entity")
+    if not keyword_entity or not keyword_entity.get("wikidata_id"):
+        print("Error: Central keyword entity is missing or invalid.")
+        return None
+
+    # Add the central keyword node
+    keyword_node = URIRef(WD[keyword_entity["wikidata_id"]])
+    g.add((keyword_node, RDF.type, SOMAT.Entity))
+    g.add((keyword_node, RDFS.label, Literal(keyword_entity["entity"])))
+
+    # Enrich the central node
+    enriched_data = get_entity_data(keyword_entity["wikidata_id"])
+    for prop, value in enriched_data.items():
+        prop_node = URIRef(SOMAT[prop.replace(" ", "_")])
+        value_node = Literal(value)
+        g.add((keyword_node, prop_node, value_node))
+
+    # Define property URIs
+    SOMAT_count = URIRef("http://localhost:8000/somat/count")
+    SOMAT_instance_of = URIRef("http://localhost:8000/somat/instance_of")
+
+    def add_linked_entities(entities, relationship):
+        # Create a dictionary to track entities by their Wikidata ID
+        entity_map = {}
+
+        for entity in entities:
+            if not entity.get("wikidata_id") or entity["wikidata_id"] == "Not found":
+                print(f"Skipping entity with invalid wikidata_id: {entity}")
+                continue
+
+            wikidata_id = entity["wikidata_id"]
+
+            # If we've seen this entity before, update its count
+            if wikidata_id in entity_map:
+                entity_map[wikidata_id]["total_count"] += entity["count"]
+                # Store alternative labels
+                if entity["entity"] not in entity_map[wikidata_id]["labels"]:
+                    entity_map[wikidata_id]["labels"].append(entity["entity"])
+            else:
+                entity_map[wikidata_id] = {
+                    "total_count": entity["count"],
+                    "primary_label": entity["entity"],
+                    "labels": [entity["entity"]]
+                }
+
+        # Now create nodes for each unique entity
+        for wikidata_id, info in entity_map.items():
+            related_node = URIRef(WD[wikidata_id])
+
+            # Add type
+            g.add((related_node, RDF.type, SOMAT.Entity))
+
+            # Add primary label only once
+            g.add((related_node, RDFS.label, Literal(info["primary_label"])))
+
+            # Add alternative labels using SKOS
+            for alt_label in info["labels"][1:]:  # Skip primary label
+                g.add((related_node, SKOS.altLabel, Literal(alt_label)))
+
+            # Add single combined count
+            g.add((related_node, SOMAT_count, Literal(info["total_count"])))
+
+            # Add instance_of property and human-specific predicates
+            enriched_related_data = get_entity_data(wikidata_id)
+            instance_of_info = enriched_related_data.get("instance of")
+            if instance_of_info:
+                g.add((related_node, SOMAT_instance_of, Literal(instance_of_info)))
+
+            human_specific_features = {"date of birth", "occupation", "place of birth", "spouse"}
+            for feature in human_specific_features:
+                if feature in enriched_related_data:
+                    feature_uri = URIRef(SOMAT[feature.replace(" ", "_")])
+                    g.add((related_node, feature_uri, Literal(enriched_related_data[feature])))
+
+            # Link to central entity
+            g.add((keyword_node, relationship, related_node))
+
+    # Add people, locations, and organizations
+    add_linked_entities(data.get("linked_people", []), SOMAT.mentioned_with)
+    add_linked_entities(data.get("linked_locations", []), SOMAT.mentioned_in_location)
+    add_linked_entities(data.get("linked_organizations", []), SOMAT.associated_with)
+
+    # Serialize the graph to an RDF/XML file
+    g.serialize("enriched_graph.rdf", format="xml")
+
+    return g
+
+def generate_knowledge_graph(request):
+    with open('output_data.json', 'r') as f:
+        data = json.load(f)
+
+    knowledge_graph = create_enriched_graph(data)
+
+    graph_data = knowledge_graph.serialize(format="json-ld")
+
+    return JsonResponse(json.loads(graph_data), safe=False)

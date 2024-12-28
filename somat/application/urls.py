@@ -14,4 +14,6 @@ urlpatterns = [
     path('get_wikidata_id/', views.get_wikidata_id, name='get_wikidata_id'),
     path('get_image_from_wikidata/', views.get_image_from_wikidata, name='get_image_from_wikidata'),
     path('wikidata_id_lookup/', tests.wikidata_id_lookup, name='wikidata_id_lookup'),
+    path('get_entity_data/', views.get_entity_data, name='get_entity_data'),
+    path('generate_knowledge_graph/', views.generate_knowledge_graph, name='generate_knowledge_graph'),
 ]
