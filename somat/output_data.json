@@ -1,0 +1,120 @@
+{
+    "keyword_entity": {
+        "entity": "Chelsea",
+        "label": "ORG",
+        "count": 41,
+        "wikidata_id": "Q9616",
+        "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Stamford_Bridge_-_West_Stand.jpg"
+    },
+    "linked_people": [
+        {
+            "entity": "Nicolas Jackson",
+            "label": "PER",
+            "count": 8,
+            "wikidata_id": "Q100144350",
+            "image": "None"
+        },
+        {
+            "entity": "Christopher Nkunku",
+            "label": "PER",
+            "count": 8,
+            "wikidata_id": "Q21693199",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/2020-03-10_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League_Achtelfinale%2C_RB_Leipzig_-_Tottenham_Hotspur_1DX_3683_by_Stepro.jpg"
+        },
+        {
+            "entity": "Pedro Neto",
+            "label": "PER",
+            "count": 8,
+            "wikidata_id": "Q30036972",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/PedroNetoEur.jpg"
+        },
+        {
+            "entity": "Cole Palmer",
+            "label": "PER",
+            "count": 7,
+            "wikidata_id": "Q99760796",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Yokohama_F._Marinos_-_Manchester_City_%283-5%29_-_53075276869_%28Cole_Palmer%29.jpg"
+        },
+        {
+            "entity": "Harry Wilson",
+            "label": "PER",
+            "count": 7,
+            "wikidata_id": "Q2476368",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Harry_Wilson_2020.jpg"
+        }
+    ],
+    "linked_locations": [
+        {
+            "entity": "Stamford Bridge",
+            "label": "LOC",
+            "count": 3,
+            "wikidata_id": "Q171458",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/London_Stamford_Bridge.jpg"
+        },
+        {
+            "entity": "Oxford",
+            "label": "LOC",
+            "count": 2,
+            "wikidata_id": "Q34217",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Oxford_from_Boars_Hill.jpg"
+        },
+        {
+            "entity": "Brentford",
+            "label": "LOC",
+            "count": 2,
+            "wikidata_id": "Q19571",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Griffin_Park_2011.jpg"
+        },
+        {
+            "entity": "Carrow Road",
+            "label": "LOC",
+            "count": 1,
+            "wikidata_id": "Q123017",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/NCFC_Geoffrey_Watling_City_Stand_Apr07.JPG"
+        },
+        {
+            "entity": "Boleyn Ground",
+            "label": "LOC",
+            "count": 1,
+            "wikidata_id": "Q330731",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Boleyn_Ground_Upton_Park_1.jpg"
+        }
+    ],
+    "linked_organizations": [
+        {
+            "entity": "Fulham",
+            "label": "ORG",
+            "count": 37,
+            "wikidata_id": "Q18708",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Craven_Cottage.JPG"
+        },
+        {
+            "entity": "Everton",
+            "label": "ORG",
+            "count": 20,
+            "wikidata_id": "Q5794",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/AdvertisingEverton.jpg"
+        },
+        {
+            "entity": "Liverpool",
+            "label": "ORG",
+            "count": 6,
+            "wikidata_id": "Q1130849",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Logo_Liverpool_FC_%282024%29.png"
+        },
+        {
+            "entity": "Beto",
+            "label": "ORG",
+            "count": 6,
+            "wikidata_id": "Q313955",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Mex-por-109_%281cropped%29.jpg"
+        },
+        {
+            "entity": "Arsenal",
+            "label": "ORG",
+            "count": 4,
+            "wikidata_id": "Q9617",
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Arsenal_dressing_room_Emirates_Stadium_2024-04-26.jpg"
+        }
+    ]
+}

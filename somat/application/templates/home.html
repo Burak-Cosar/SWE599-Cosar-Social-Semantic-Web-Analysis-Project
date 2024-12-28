@@ -37,6 +37,7 @@
 </div>
 
 <script>
+let selectedQuery = '';
 
 document.getElementById('platform').addEventListener('change', function () {
     const redditSearch = document.getElementById('reddit-search');
@@ -50,6 +51,8 @@ function searchSubreddit() {
         return;
     }
 
+    selectedQuery = query; // Store the query globally
+
     fetch(`/search_subreddit/?query=${query}`)
         .then(response => response.json())
         .then(data => {
@@ -57,7 +60,7 @@ function searchSubreddit() {
                 alert(data.error);
             } else {
                 const container = document.getElementById('subreddit-selection');
-                container.innerHTML = ''; 
+                container.innerHTML = '';
 
                 const instruction = document.createElement('p');
                 instruction.textContent = 'Choose a subreddit for analysis:';
@@ -109,7 +112,6 @@ function searchSubreddit() {
 
                 container.appendChild(timePeriodDropdown);
 
-                // Add analysis instruction text
                 const entitySearchInstruction = document.createElement('p');
                 container.appendChild(document.createElement('br'));
                 container.appendChild(document.createElement('br'));
@@ -159,7 +161,7 @@ function analyzeEntity() {
         return;
     }
 
-    fetch(`/analyze_keyword/?subreddit=${subreddit}&keyword=${entity}&time_period=${document.getElementById('time-period').value}`)
+    fetch(`/analyze_keyword/?subreddit=${subreddit}&keyword=${entity}&time_period=${document.getElementById('time-period').value}&query=${selectedQuery}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -204,11 +206,13 @@ function analyzeEntity() {
                     contentContainer.style.alignItems = 'center';
                     contentContainer.style.justifyContent = 'center';  // Center horizontally
 
+                    const defaultImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png';
+
                     // Create and style the image element
                     const keywordImage = document.createElement('img');
-                    keywordImage.src = data.keyword_entity.image;
+                    keywordImage.src = data.keyword_entity.image.includes('None') ? defaultImageUrl : data.keyword_entity.image;
                     keywordImage.alt = `${data.keyword_entity.entity} Image`;
-                    keywordImage.style.width = '150px';   // Slightly larger for emphasis
+                    keywordImage.style.width = '180px';   // Slightly larger for emphasis
                     keywordImage.style.marginRight = '2em';
                     keywordImage.style.borderRadius = '20px'; 
 
@@ -238,7 +242,7 @@ function analyzeEntity() {
 
                 // Helper function to create results sections
                 function createResultSection(title, dataArray) {
-                    const defaultImageUrl = 'https://salonlfc.com/wp-content/uploads/2018/01/image-not-found-1-scaled-1150x647.png';
+                    const defaultImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png';
 
                     if (!dataArray || dataArray.length === 0) return;
 
@@ -262,8 +266,8 @@ function analyzeEntity() {
                         const image = document.createElement('img');
                         image.src = item.image.includes('None') ? defaultImageUrl : item.image;
                         image.alt = `${item.entity} Image`;
-                        image.style.width = '100px';
-                        image.style.height = '100px';
+                        image.style.width = '120px';
+                        image.style.height = '120px';
                         image.style.objectFit = 'cover';
                         image.style.borderRadius = '10px';
                         listItem.appendChild(image);

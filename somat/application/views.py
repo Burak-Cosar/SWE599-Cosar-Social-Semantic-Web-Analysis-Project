@@ -1,4 +1,4 @@
-import requests, os, spacy, json, time
+import requests, os, spacy, json, time, re
 from django.shortcuts import render
 from django.http import JsonResponse
 from datetime import datetime, timezone
@@ -6,11 +6,14 @@ from dotenv import load_dotenv
 from collections import defaultdict
 from flair.models import SequenceTagger
 from flair.data import Sentence
-from collections import defaultdict
 from rapidfuzz import process, fuzz
+from urllib.parse import quote
 
 load_dotenv()
 tagger = SequenceTagger.load("ner-fast")
+
+# Load SpaCy model
+nlp = spacy.load("en_core_web_sm")
 
 # Create your views here.
 def home(request):
@@ -101,13 +104,13 @@ def get_reddit_data(request):
         }
         if subreddit != 'all':
             url = f'https://oauth.reddit.com/r/{subreddit}/search'
-            params['restrict_sr'] = True  # Restrict search to the subreddit
+            params['restrict_sr'] = True
         else:
             url = 'https://oauth.reddit.com/search'
 
         response = requests.get(url, headers=headers, params=params)
         if response.status_code != 200:
-            break  # Stop if there's an error
+            break
 
         data = response.json().get('data', {})
         posts = data.get('children', [])
@@ -135,7 +138,7 @@ def get_reddit_data(request):
             print("Pagination complete.")
             break
 
-        time.sleep(1)  # Delay to prevent rate limiting
+        time.sleep(1)
 
     # Save results to reddit_data.json
     with open('reddit_data.json', 'w') as f:
@@ -143,16 +146,20 @@ def get_reddit_data(request):
         
     return JsonResponse({'results': results})
 
+def normalize_quotes(text):
+    # Replace curly single and double quotes with their standard counterparts
+    text = re.sub(r'[‘’]', "'", text)  # Replace curly single quotes
+    text = re.sub(r'[“”]', '"', text)  # Replace curly double quotes
+    return text
 
 def extract_named_entities(posts):
-    
     # Extract named entities using Flair NER model.
-    
     entity_counts = defaultdict(lambda: {"label": None, "count": 0})
 
     for post in posts:
         # Combine title and body
         text = f"{post.get('title', '')} {post.get('body', '')}".strip()
+        text = normalize_quotes(text)  # Normalize quotes in the text
 
         if not text:
             continue  # Skip empty posts
@@ -165,7 +172,7 @@ def extract_named_entities(posts):
 
         # Count entities
         for entity in sentence.get_spans("ner"):
-            entity_text = entity.text
+            entity_text = normalize_quotes(entity.text)  # Normalize entity text
             entity_label = entity.tag
 
             if entity_text not in entity_counts:
@@ -175,8 +182,8 @@ def extract_named_entities(posts):
     return entity_counts
 
 def analyze_keyword(request):
-    subreddit = request.GET.get('subreddit', 'all')
     keyword = request.GET.get('keyword', '').strip()
+    query = request.GET.get('query', '').strip()
 
     reddit_response = get_reddit_data(request)
     reddit_data = json.loads(reddit_response.content).get("results", [])
@@ -194,7 +201,7 @@ def analyze_keyword(request):
     ]
 
     # Perform entity linking
-    keyword_entity, linked_entities = spacy_entity_linking(analysis_results, keyword)
+    keyword_entity, linked_entities = spacy_entity_linking(analysis_results, keyword, query)
 
     if not linked_entities:
         return JsonResponse({'error': 'No linked entities found.'}, status=404)
@@ -220,26 +227,30 @@ def analyze_keyword(request):
     # Fetch images for top entities only
     for entity_list in [linked_people, linked_locations, linked_organizations]:
         for entity in entity_list:
-            wikidata_id = get_wikidata_id(entity['entity'])
-            entity['image'] = get_image_from_wikidata(wikidata_id)
+            entity['image'] = get_image_from_wikidata(entity['wikidata_id'])
 
-    keyword_wikidata_id = get_wikidata_id(keyword_entity['entity'])
-    keyword_entity_image = get_image_from_wikidata(keyword_wikidata_id)
+    keyword_entity_image = get_image_from_wikidata(keyword_entity['wikidata_id'])
 
-    return JsonResponse({
+    # Construct the output JSON
+    output_data = {
         "keyword_entity": {
             "entity": keyword_entity['entity'],
             "label": keyword_entity['label'],
             "count": keyword_entity['count'],
+            "wikidata_id": keyword_entity['wikidata_id'],
             "image": keyword_entity_image
         },
         "linked_people": linked_people,
         "linked_locations": linked_locations,
-        "linked_organizations": linked_organizations,
-    })
+        "linked_organizations": linked_organizations
+    }
 
-# Load SpaCy model
-nlp = spacy.load("en_core_web_sm")
+    # Save the output to a JSON file
+    with open('output_data.json', 'w') as json_file:
+        json.dump(output_data, json_file, indent=4)
+
+    # Return the JSON response
+    return JsonResponse(output_data)
 
 ENTITY_ALIAS_MAPPING = {
     "Trump": ("Donald Trump", "PER"),
@@ -261,7 +272,6 @@ ENTITY_ALIAS_MAPPING = {
     "AI": ("AI", "MISC"),
     "Taylor Swift": ("Taylor Swift", "PER"),
     "SZA": ("SZA", "PER"),
-    ", Drake": ("Drake", "PER"),
     "Tyla,": ("Tyla", "PER"),
     "Gala": ("Galatasaray", "ORG"),
     "Tadic": ("Dusan Tadic", "PER"),
@@ -272,67 +282,91 @@ ENTITY_ALIAS_MAPPING = {
     "Zuckerberg": ("Mark Zuckerberg", "PER"),
     "Bezos": ("Jeff Bezos", "PER"),
     "Altman": ("Sam Altman", "PER"),
+    "Ramaswamy": ("Vivek Ramaswamy", "PER"),
+    "LA": ("Los Angeles", "LOC"),
+    "Salah": ("Mohamed Salah", "PER"),
+    "Messi": ("Lionel Messi", "PER"),
+    "Mbappé": ("Kylian Mbappé", "PER"),
+    "Man United": ("Manchester United", "ORG"),
+    "fetterman": ("John Fetterman", "PER"),
+    "Witcher": ("The Witcher", "ORG"),
+    "Baldur": ("Baldur's Gate", "ORG"),
+    "Baldurs Gate": ("Baldur's Gate", "ORG"),
+    "Kendricks": ("Kendrick Lamar", "PER"),
+    "Tyler": ("Tyler, the Creator", "PER"),
+    "Smiths": ("The Smiths", "ORG"),
+    "smiths": ("The Smiths", "ORG"),
+    "Kanye": ("Kanye West", "PER"),
+    "The Smiths": ("The Smiths", "ORG"),
+    "Spotify": ("Spotify", "ORG"),
+    "Mbappe": ("Kylian Mbappé", "PER"),
+    "Trafford": ("Old Trafford", "LOC"),
+    "Manchester United Edition": ("Manchester United", "ORG"),
+    "Germany": ("Germany", "LOC"),
+    "Guardiola": ("Pep Guardiola", "PER"),
+    "Al": ("Al Ahly", "ORG"),
+    "Ross County": ("Ross County", "LOC"),
 }
 
-from collections import defaultdict
-from rapidfuzz import process, fuzz
-import spacy
-
-# Load SpaCy model
-nlp = spacy.load("en_core_web_sm")
-
-def spacy_entity_linking(entities, keyword, threshold=85):
+def spacy_entity_linking(entities, keyword, query, threshold=85):
     merged_entities = defaultdict(lambda: {"label": None, "count": 0})
     keyword_entity = None
+    query = query.lower()
 
     for entity_data in entities:
         entity = entity_data['entity']
         label = entity_data['label']
         count = entity_data['count']
 
-        # Apply manual alias mapping
-        if entity in ENTITY_ALIAS_MAPPING:
-            resolved_entity, resolved_label = ENTITY_ALIAS_MAPPING[entity]
-            label = resolved_label
-        else:
-            resolved_entity = entity
+        # Split compound entities and process individually
+        entity_parts = re.split(r'[:\-\/]', entity)
+        for part in entity_parts:
+            resolved_entity = part.strip()
 
-        # Use SpaCy NER if needed
-        doc = nlp(resolved_entity)
-        if doc.ents:
-            resolved_entity = doc.ents[0].text
+            # Apply alias mapping
+            if resolved_entity in ENTITY_ALIAS_MAPPING:
+                resolved_entity, resolved_label = ENTITY_ALIAS_MAPPING[resolved_entity]
+                label = resolved_label
+            else:
+                # Use SpaCy NER as fallback
+                doc = nlp(resolved_entity)
+                if doc.ents:
+                    resolved_entity = doc.ents[0].text
 
-        # Use fuzzy matching to merge similar entities
-        match_data = process.extractOne(
-            resolved_entity, merged_entities.keys(), scorer=fuzz.token_set_ratio
-        )
+            # Fuzzy match with existing merged entities
+            match_data = process.extractOne(
+                resolved_entity, merged_entities.keys(), scorer=fuzz.token_set_ratio
+            )
+            if match_data:
+                match, score, _ = match_data
+                if score >= threshold:
+                    merged_entities[match]["count"] += count
+                    continue
 
-        if match_data:
-            match, score, _ = match_data
-            if score >= threshold:
-                merged_entities[match]["count"] += count
-                continue
-
-        # Add or update the entity in merged_entities
-        merged_entities[resolved_entity]["label"] = label
-        merged_entities[resolved_entity]["count"] += count
+            # Add or update the entity in the merged dictionary
+            merged_entities[resolved_entity]["label"] = label
+            merged_entities[resolved_entity]["count"] += count
 
     # Extract the keyword entity
     for key, data in list(merged_entities.items()):
         if keyword.lower() in key.lower():
-            keyword_entity = {"entity": key, "label": data["label"], "count": data["count"]}
+            keyword_entity = {"entity": key, "label": data["label"], "count": data["count"],"wikidata_id": get_wikidata_id(key, query)}
             del merged_entities[key]
             break
 
     # Prepare related entities list
     related_entities = [
-        {'entity': k, 'label': v['label'], 'count': v['count']}
+        {"entity": k, "label": v["label"], "count": v["count"], "wikidata_id": get_wikidata_id(k, query)}
         for k, v in merged_entities.items()
     ]
 
     return keyword_entity, related_entities
 
-def get_wikidata_id(search_term):
+
+def get_wikidata_id(search_term, context):
+    """
+    Fetch the Wikidata ID for a given search term, optionally filter results locally using context.
+    """
     url = "https://www.wikidata.org/w/api.php"
     params = {
         "action": "wbsearchentities",
@@ -342,8 +376,22 @@ def get_wikidata_id(search_term):
     }
     response = requests.get(url, params=params)
     data = response.json()
-    if data['search']:
-        return data['search'][0]['id']
+
+    if data.get('search'):
+        # Retrieve all results
+        results = data['search']
+        
+        # Try filtering results locally based on context if provided
+        if context:
+            filtered_results = [
+                item for item in results
+                if context in item.get('description', '').lower()
+            ]
+            if filtered_results:
+                return filtered_results[0]['id']  # Return the first matching result
+
+        # Return the first result if no match is found or context is not provided
+        return results[0]['id']
     else:
         return "Not found"
     
@@ -358,9 +406,23 @@ def get_image_from_wikidata(wikidata_id):
     response = requests.get(url, params=params).json()
 
     if 'entities' in response and wikidata_id in response['entities']:
-        claims = response['entities'][wikidata_id]['claims']
+        claims = response['entities'][wikidata_id].get('claims', {})
+
+        # Check for P154 (logo) first
+        if 'P154' in claims:
+            image_data = claims['P154'][0].get('mainsnak', {}).get('datavalue', {})
+            if image_data:
+                image_file_name = image_data.get('value')
+                image_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{quote(image_file_name.replace(' ', '_'))}"
+                return image_url
+
+        # Check for P18 (image)
         if 'P18' in claims:
-            image_file_name = claims['P18'][0]['mainsnak']['datavalue']['value']
-            image_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{image_file_name.replace(' ', '_')}"
-            return image_url
+            image_data = claims['P18'][0].get('mainsnak', {}).get('datavalue', {})
+            if image_data:
+                image_file_name = image_data.get('value')
+                image_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{quote(image_file_name.replace(' ', '_'))}"
+                return image_url
+
+    # Return None if no image is found
     return "None"

@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import tests
 
 urlpatterns = [
     path('', views.home, name="home"),
@@ -12,4 +13,5 @@ urlpatterns = [
     path('get_reddit_token/', views.get_reddit_token, name='get_reddit_token'),
     path('get_wikidata_id/', views.get_wikidata_id, name='get_wikidata_id'),
     path('get_image_from_wikidata/', views.get_image_from_wikidata, name='get_image_from_wikidata'),
+    path('wikidata_id_lookup/', tests.wikidata_id_lookup, name='wikidata_id_lookup'),
 ]
