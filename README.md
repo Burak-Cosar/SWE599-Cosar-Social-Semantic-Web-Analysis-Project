@@ -7,14 +7,6 @@ For the scope of this project, considering the limitations of various social med
 
 ## Setup
 
-Project setup:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-cd somat
-pip install -r requirements.txt
-```
-
 .env file (Required):
 ```bash
 # .env file. Developers need to fill in their Reddit Developer credentials for usage.
@@ -24,7 +16,15 @@ USERNAME = your_username
 PASSWORD = your_password
 ```
 
-Run server:
+Project setup:
+```bash
+cd Somat
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Make Migrations & Run Server:
 ```bash
 python3 manage.py makemigrations &&
 python3 manage.py migrate &&
