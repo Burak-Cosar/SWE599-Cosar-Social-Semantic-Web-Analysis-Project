@@ -8,7 +8,6 @@ from flair.models import SequenceTagger
 from flair.data import Sentence
 from rapidfuzz import process, fuzz
 from urllib.parse import quote
-from bs4 import BeautifulSoup
 
 load_dotenv()
 tagger = SequenceTagger.load("ner-fast")

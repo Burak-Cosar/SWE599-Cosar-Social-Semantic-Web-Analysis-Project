@@ -2,3 +2,6 @@ redditApi.py
 venv
 .env
 .DS_Store
+somat/enriched_graph.rdf
+somat/output_data.json
+somat/reddit_data.json
