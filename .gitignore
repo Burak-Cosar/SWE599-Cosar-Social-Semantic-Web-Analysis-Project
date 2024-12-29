@@ -5,3 +5,5 @@ venv
 somat/enriched_graph.rdf
 somat/output_data.json
 somat/reddit_data.json
+somat/application/__pycache__
+somat/somat/__pycache__
