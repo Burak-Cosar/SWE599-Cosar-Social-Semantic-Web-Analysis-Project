@@ -1,0 +1,8 @@
+venv/
+*.pyc
+__pycache__/
+db.sqlite3
+.env
+output_data.json
+reddit_data.json
+*.rdf
