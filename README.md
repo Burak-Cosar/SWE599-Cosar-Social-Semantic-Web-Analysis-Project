@@ -5,7 +5,10 @@ The purpose of this tool is to enable users to make social media analysis based 
 
 For the scope of this project, considering the limitations of various social media platforms, the system connection is only established with Reddit.
 
-Docker image of the application can be accessed at: https://hub.docker.com/r/cosarb/somat-web
+Docker image of the application can be accessed at: 
+```bash
+https://hub.docker.com/r/cosarb/somat-web
+```
 
 ## Setup
 
