@@ -3,7 +3,9 @@
 ## Description
 The purpose of this tool is to enable users to make social media analysis based on their platform, context and time period preferences, providing them with multiple output and visualization options.
 
-For the scope of this project, considering the limitations of various social media platforms, the system connection is only established with Reddit. 
+For the scope of this project, considering the limitations of various social media platforms, the system connection is only established with Reddit.
+
+Docker image of the application can be accessed at: https://hub.docker.com/r/cosarb/somat-web
 
 ## Setup
 
